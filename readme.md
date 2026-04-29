@@ -123,7 +123,32 @@ If topics do not appear or you do not see the streaming data
 1. Laptop can ping `192.168.123.18`
 2. `ROS_MASTER_URI` points to `http://192.168.123.18:11311`
 3. `ROS_IP` is the laptop IP reachable by GO2
-4. In ```rostopic info``` check that the publisher hostname is resolvable from your system. (Fix it, or temporarily add it to hosts)
+4. In ```rostopic info``` check that the publisher hostname is resolvable from your system. (Fix it, or temporarily add it to hosts using )
 
 ## Start a script to visualize realsense data from the docker container
 
+The repository contains a simple Python viewer at `src/show_realsense_rgb.py` that subscribes to `/camera/color/image_raw` and opens an OpenCV window.
+
+### Enable GUI forwarding for Docker (Linux/X11)
+On your laptop host, allow local root containers to connect to X11:
+```bash
+xhost +local:root
+```
+
+### Build and start the container
+From this repository root:
+```bash
+docker compose build ros1-client
+docker compose run --rm ros1-client
+```
+
+### Run the RGB viewer script
+Inside the container:
+```bash
+source /opt/ros/noetic/setup.bash
+python3 /ws/src/show_realsense_rgb.py
+```
+
+If everything is configured correctly, a window named `RealSense RGB` should appear and show the live color stream.
+
+Stop the script with `Ctrl+C`.

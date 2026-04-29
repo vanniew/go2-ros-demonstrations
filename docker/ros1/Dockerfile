@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     iputils-ping \
     net-tools \
+    python3-numpy \
+    python3-opencv \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
