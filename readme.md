@@ -123,7 +123,7 @@ If topics do not appear or you do not see the streaming data
 1. Laptop can ping `192.168.123.18`
 2. `ROS_MASTER_URI` points to `http://192.168.123.18:11311`
 3. `ROS_IP` is the laptop IP reachable by GO2
-4. In ```rostopic info``` check that the publisher hostname is resolvable from your system. (Fix it, or temporarily add it to hosts using )
+4. In ```rostopic info``` check that the publisher hostname is resolvable from your system. (Fix it, or temporarily add it to hosts using echo ```echo "192.168.123.18 ubuntu" | sudo tee -a /etc/hosts```)
 
 ## Start a script to visualize realsense data from the docker container
 
@@ -136,9 +136,15 @@ xhost +local:root
 ```
 
 ### Build and start the container
+If the container has not been built yet, build it. 
 From this repository root:
 ```bash
 docker compose build ros1-client
+```
+
+If the container is not yet running, run it. 
+From this repository root:
+```bash
 docker compose run --rm ros1-client
 ```
 
@@ -152,3 +158,44 @@ python3 /ws/src/show_realsense_rgb.py
 If everything is configured correctly, a window named `RealSense RGB` should appear and show the live color stream.
 
 Stop the script with `Ctrl+C`.
+
+### YOLO Tracker Script
+After you verified that camera is accessible from the laptop with the script above, try the YOLO tracker script.
+
+
+#### Start ROS Master and Camera Node on the Robot
+Terminal window 1
+```bash
+roscore
+```
+
+Terminal window 2
+```bash
+roslaunch realsense2_camera rs_camera.launch \
+  enable_infra:=false enable_infra1:=false enable_infra2:=false \
+  enable_confidence:=false \
+  align_depth:=true \     # Align depth camera to rgb
+  depth_width:=640 depth_height:=480 depth_fps:=30 \
+  color_width:=640 color_height:=480 color_fps:=30
+```
+
+#### Start the ros-client on the laptop
+If the container has not been built yet, build it. Otherwise skip this step. 
+```bash
+docker compose build ros1-client
+```
+
+Give permissions for the container to acesss the xhost sysem and start the container
+```bash
+xhost +local:root
+docker compose run --rm ros1-client
+```
+#### Inside the container start the script
+Inside the container:
+```bash
+echo "192.168.123.18 ubuntu" | sudo tee -a /etc/hosts
+source /opt/ros/noetic/setup.bash
+python3 /ws/src/realsense_yolo_tracker.py
+```
+
+The script subscribes to `/camera/color/image_raw` and `/camera/aligned_depth_to_color/image_raw`, runs YOLO on the RGB image, and overlays the target offset plus measured depth.
