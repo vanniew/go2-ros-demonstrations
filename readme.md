@@ -57,11 +57,11 @@ Try following code again and look for a realsense package
 ```bash
 ros2 pkg list
 ```
-In the software version we are using there is no ros2 realsense package. 
+In the software version we are using the realsense package is missing.
 
 ## ROS1 Exploration
 ### Intel Realsense (ROS1 Only)
-Apparently Intel Realsense is currently only available as a ROS1 node. We try it out with the following commands
+Since realsensee package is missing on ros2, we look for it in the ros1 distribution and find it there. Launch ros master node and the realsense ros node in separate terminal windows with the following commands. 
 
 Terminal window 1
 ```bash
