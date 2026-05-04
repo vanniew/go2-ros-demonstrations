@@ -166,17 +166,18 @@ After you verified that camera is accessible from the laptop with the script abo
 #### Start ROS Master and Camera Node on the Robot
 Terminal window 1
 ```bash
+ssh <username>@<IP Address of your Unitree Go2 Robot>
 roscore
 ```
 
 Terminal window 2
 ```bash
 roslaunch realsense2_camera rs_camera.launch \
-  enable_infra:=false enable_infra1:=false enable_infra2:=false \
-  enable_confidence:=false \
-  align_depth:=true \     # Align depth camera to rgb
-  depth_width:=640 depth_height:=480 depth_fps:=30 \
-  color_width:=640 color_height:=480 color_fps:=30
+enable_infra:=false enable_infra1:=false enable_infra2:=false \
+enable_confidence:=false \
+align_depth:=true \
+depth_width:=640 depth_height:=480 depth_fps:=30 \
+color_width:=640 color_height:=480 color_fps:=30
 ```
 
 #### Start the ros-client on the laptop
@@ -199,3 +200,7 @@ python3 /ws/src/realsense_yolo_tracker.py
 ```
 
 The script subscribes to `/camera/color/image_raw` and `/camera/aligned_depth_to_color/image_raw`, runs YOLO on the RGB image, and overlays the target offset plus measured depth.
+
+## Todo
+1. Automate application startup further. Avoid having to add ubuntu to /etc/hosts for communication between client and server to work. 
+2. Add movement 
