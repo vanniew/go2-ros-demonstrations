@@ -11,7 +11,7 @@ from realsense_yolo_tracker_OO import RealSenseYOLOTracker
 
 OBJECT_ID = 41
 TARGET_DISTANCE_M = 0.7
-MAX_DISTANCE_M = 2
+MAX_DISTANCE_M = 3
 MIN_DISTANCE_M = 0
 MAX_SPEED = 0.2
 MAX_YAW_RATE = 0.3
@@ -33,10 +33,17 @@ class DetectionMemory:
         self.last_detection = None
         self.last_seen_time = None
 
+    def detection_is_valid(self, detection):
+        if detection is None:
+            return False
+
+        _, _, _, depth_m, _, _ = detection
+        return math.isfinite(depth_m) and depth_m < MAX_DISTANCE_M
+
     def update(self, detection):
         now = time.time()
 
-        if detection is not None:
+        if self.detection_is_valid(detection):
             x_err, y_err, conf, depth_m, bbox, class_id = detection
 
             if self.last_detection is not None:
@@ -68,10 +75,8 @@ def compute_walk_command(detection):
          return 0.0, 0.0, 0.0
 
     x_err, _, _, depth_m, _, _ = detection
-    if not math.isfinite(depth_m) or (MAX_DISTANCE_M <= depth_m) or (depth_m <= MIN_DISTANCE_M):
-         return 0.0, 0.0, 0.0
-
-    vx = clamp(KP_FORWARD * (depth_m - TARGET_DISTANCE_M), -MAX_SPEED, MAX_SPEED)
+    # vx = clamp(KP_FORWARD * (depth_m - TARGET_DISTANCE_M), -MAX_SPEED, MAX_SPEED) # Move backwards if object is very close
+    vx = clamp(KP_FORWARD * (depth_m - TARGET_DISTANCE_M), 0.0, MAX_SPEED) # Stop if object is at target range
     vy= 0.0
     vyaw = clamp(-KP_YAW * x_err, -MAX_YAW_RATE, MAX_YAW_RATE)
     # return vx, 0.0, vyaw
