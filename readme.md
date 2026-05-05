@@ -255,7 +255,7 @@ Stop the script with `Ctrl+C`.
 1. Miscellaneous:
   - Currently ROS messages from Unitree are being sent from host ubuntu instead from a fixed IP. As a result the client needs to be able to resolve the IP address of Ubunut. We fix this by adding ubuntu to the hosts file of the docker container. In the future a permanent fix would be better.  2
   - Make laptop user part of the docker group
-  - Edit code directly from within a docker container. 
+  - Edit code in the IDE directly within the docker container. 
 3. Improve YOLO Tracking, so that you can filter detections based on
   - ClassID - Already supported
   - Maximum distance - to be implemented

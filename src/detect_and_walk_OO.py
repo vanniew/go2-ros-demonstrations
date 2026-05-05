@@ -14,8 +14,9 @@ TARGET_DISTANCE_M = 0.7
 MAX_DISTANCE_M = 3
 MIN_DISTANCE_M = 0
 MAX_SPEED = 0.2
-MAX_YAW_RATE = 0.3
-KP_FORWARD = 0.50
+MAX_YAW_RATE = 0.5
+MIN_X_ERROR_PX = 100
+KP_FORWARD = 0.40
 KP_YAW = 0.004
 
 UNITREE_NIC = "enp129s0"
@@ -23,6 +24,13 @@ UNITREE_NIC = "enp129s0"
 
 def clamp(value, low, high):
     return max(low, min(high, value))
+
+
+def apply_deadband(value, threshold):
+    if abs(value) < threshold:
+        return 0.0
+    return value
+
 
 class DetectionMemory:
     def __init__(self, lost_timeout_s=0.4, alpha_depth=0.4, alpha_x=0.4):
@@ -75,6 +83,8 @@ def compute_walk_command(detection):
          return 0.0, 0.0, 0.0
 
     x_err, _, _, depth_m, _, _ = detection
+    x_err = apply_deadband(x_err, MIN_X_ERROR_PX)
+
     # vx = clamp(KP_FORWARD * (depth_m - TARGET_DISTANCE_M), -MAX_SPEED, MAX_SPEED) # Move backwards if object is very close
     vx = clamp(KP_FORWARD * (depth_m - TARGET_DISTANCE_M), 0.0, MAX_SPEED) # Stop if object is at target range
     vy= 0.0

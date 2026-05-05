@@ -106,6 +106,9 @@ if __name__ == "__main__":
         go2.set_speed(vx=0.0, vyaw=-0.4)
         time.sleep(2)
 
+        go2.set_speed(vx=0.2, vyaw=0.4)
+        time.sleep(2)
+
         go2.set_speed(vx=-0.2)
         time.sleep(2)
 
