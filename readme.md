@@ -1,17 +1,22 @@
-# Intel Realsense Integration
-In a prior project we already developed a servo-based camera tracking using YOLO model to detect a specific object. We want to take it one step further and integrate the intel realsense depth camera that is provided with the unitree GO2.
-The goal is to make the robot move forward based on measured depth data. 
+# Come get your coffee (banana) demo
+## Description
+In a prior project we already developed a servo-based camera tracking using YOLO model to detect a specific object like a banana. For this demo the robot only changed its body pose so (roll, yaw, pitch) so the camera could track the object. We want to take it one step further and integrate the intel realsense depth camera that is provided with the unitree GO2 so the robot can actually move towards the object that it wants to track based on depth data. 
 
-We proceed through the following steps:
-1. Camera Installation
-2. Configure connectivity between a laptop and the Unitree GO2
-3. Understand how camera data is streamed and configured locally on Unitree Go2
-4. Access camera data on the laptop through a ros subscriber
+The YOLO model that we use for this demo has been trained on the COCO dataset, so any object that is in the COCO dataset can be used for the demo.  We recommend to pick a distinctive object such as a banana or a cup from the coco dataset so that the robot does not move towards an accidentally discovered object in your room. 
 
-## Camera Installation
-Mount the provided realsense camera on the front of the robot (4 screws and a mounting plate are delivered with the robot). Plug the USB from the realsense into the developer board. 
+Always ensure that the robot has sufficient free space around it and also make sure you are ready to intervene in case the robot wanders of trajectory. 
 
-## Connectivity
+## Physical Setup
+
+### Prerequisites
+There are two prerequisites:
+- D435f realsense camera mounted on the robot
+- Physical connectivity between laptop and Unitree GO2
+
+### Camera Installation
+The Unitree GO2 EDU includes a D435f realsense camera. Mount the realsense camera on the front of the robot (4 screws and a mounting plate are delivered with the robot). Plug the USB from the realsense into the developer board. 
+
+### Connectivity
 The unitree development board can be reached on the following IP address: ```192.168.123.18/24```. Give your laptop an IP address in the same range (for instance ```192.168.123.222``) and test connectivity via ping.
 The default username is ```unitree```
 
@@ -21,71 +26,36 @@ cp /etc/hosts /etc/hosts.bak
 echo "192.168.123.18 go2" | sudo tee -a /etc/hosts
 ```
 
-Setup cursor or your IDE for passwordless SSH access. For cursor you can do this as follows.
-1. Add passwordless SSH access. 
-```bash
-ssh-keygen -t ed25519 -C "your_email_or_label" #Optional if you do not have an SSH key on your machine yet
-ssh-copy-id unitree@192.168.123.18/24
-```
-2. Install the curosr remote-ssh extension
-3. Start cursor in the remote environment with
-```bash
-cursor --folder-uri vscode-remote://ssh-remote+unitree@192.168.123.18
-```
+Test you can ping the robot from the laptop ```ping 192.168.123.18``` or ```ping go2``` if you have added the unitree to your hosts file. 
 
-## ROS2 Exploration
-### Start ROS2
-Open a separate SSH shell into the unitree robot. When logging in you will be prompted to select either ROS2 (FOXY) or ROS1 (Noetic). Select ROS2 (FOXY)
+## Environment Setup
 
-### Useful ROS2 commands
-Commands to try
-```bash
-ros2 topic list #Shows available ROS2 topics on the DDS middleware
-ros2 nodes list #Displays all the active ROS2 nodes (If you have not started any nodes, this will be empty)
-ros2 pkg list #List all available packages on this system
-ros2 topic echo /sportmodestate #Displays robot movement information
-```
+### Prerequisites
+There are two prerequisites
+- ROS master node and ROS Realsense node running on the Unitree GO2
+- ROS client node running on Laptop
 
-### Bug Fix
-If you are unable to get information from ```ros2 topic echo /sportmodestate```, check if the ROS2 environment is completely sourced. If needed add the following line to the .bahsrc. 
-```bash
-source /unitree/module/graph_pid_ws/install/setup.bash
-```
+### Clone repository
+Clone this repository on your local laptop and cd into the locally cloned repo. 
 
-### Intel Realsense
-Try following code again and look for a realsense package
-```bash
-ros2 pkg list
-```
-In the software version we are using the realsense package is missing.
-
-## ROS1 Exploration
-### Intel Realsense (ROS1 Only)
-Since realsensee package is missing on ros2, we look for it in the ros1 distribution and find it there. Launch ros master node and the realsense ros node in separate terminal windows with the following commands. 
-
+### Start ROS Master and Realsense Node on Robot
 Terminal window 1
 ```bash
+ssh <username>@<IP Address of your Unitree Go2 Robot>
 roscore
 ```
 
 Terminal window 2
 ```bash
 roslaunch realsense2_camera rs_camera.launch \
-  enable_infra:=false enable_infra1:=false enable_infra2:=false \
-  enable_confidence:=false \
-  depth_width:=640 depth_height:=480 depth_fps:=30 \
-  color_width:=640 color_height:=480 color_fps:=30
-
+enable_infra:=false enable_infra1:=false enable_infra2:=false \
+enable_confidence:=false \
+align_depth:=true \
+depth_width:=640 depth_height:=480 depth_fps:=30 \
+color_width:=640 color_height:=480 color_fps:=30
 ```
 
-Terminal window 3
-```bash
-rostopic list
-```
-
-You should see realsense related topics listed. 
-
-### Useful ROS1 commands
+Verify ROS operational on the robot
 ```bash
 rostopic list
 rostopic info /camera/color/camera_info
@@ -93,169 +63,76 @@ rostopic echo /camera/color/camera_info
 rostopic hz /camera/color/image_raw
 ```
 
+### Start ROS Client Node on Laptop
 
-## External ROS Node
-Start a ROS1 node on your laptop in Docker and connect it to the GO2 ROS master.
-
-### Docker setup (Laptop)
-Create a local env file from the template and adjust the laptop IP:
-```bash
-cp .env.example .env
-```
-
-Set `ROS_IP` and `ROS_HOSTNAME` in `.env` to your laptop address on the `192.168.123.0/24` network.
-
-Build and start the ROS1 client container:
-```bash
-docker compose run --rm ros1-client
-```
-
-Inside the container:
-```bash
-source /opt/ros/noetic/setup.bash
-echo "$ROS_MASTER_URI"
-rostopic list #Get all topics
-rostopic info /camera/color/camera_info #Inspect a specific topic
-rostopic echo /camera/color/camera_info #Inspect the actual streamed data
-```
-
-If topics do not appear or you do not see the streaming data
-1. Laptop can ping `192.168.123.18`
-2. `ROS_MASTER_URI` points to `http://192.168.123.18:11311`
-3. `ROS_IP` is the laptop IP reachable by GO2
-4. In ```rostopic info``` check that the publisher hostname is resolvable from your system. (Fix it, or temporarily add it to hosts using echo ```echo "192.168.123.18 ubuntu" | sudo tee -a /etc/hosts```)
-
-## Start a script to visualize realsense data from the docker container
-
-The repository contains a simple Python viewer at `src/show_realsense_rgb.py` that subscribes to `/camera/color/image_raw` and opens an OpenCV window.
-
-### Enable GUI forwarding for Docker (Linux/X11)
-On your laptop host, allow local root containers to connect to X11:
-```bash
-xhost +local:root
-```
-
-### Build and start the container
-If the container has not been built yet, build it. 
-From this repository root:
-```bash
-docker compose build ros1-client
-```
-
-If the container is not yet running, run it. 
-From this repository root:
-```bash
-docker compose run --rm ros1-client
-```
-
-### Run the RGB viewer script
-Inside the container:
-```bash
-source /opt/ros/noetic/setup.bash
-python3 /ws/src/show_realsense_rgb.py
-```
-
-If everything is configured correctly, a window named `RealSense RGB` should appear and show the live color stream.
-
-Stop the script with `Ctrl+C`.
-
-### YOLO Tracker Script
-After you verified that camera is accessible from the laptop with the script above, try the YOLO tracker script.
-
-
-#### Start ROS Master and Camera Node on the Robot
-Terminal window 1
-```bash
-ssh <username>@<IP Address of your Unitree Go2 Robot>
-roscore
-```
-
-Terminal window 2
-```bash
-roslaunch realsense2_camera rs_camera.launch \
-enable_infra:=false enable_infra1:=false enable_infra2:=false \
-enable_confidence:=false \
-align_depth:=true \
-depth_width:=640 depth_height:=480 depth_fps:=30 \
-color_width:=640 color_height:=480 color_fps:=30
-```
-
-#### Start the ros-client on the laptop
-If the container has not been built yet, build it. Otherwise skip this step. 
-```bash
-docker compose build ros1-client
-```
-
-Give permissions for the container to acesss the xhost sysem and start the container
-```bash
-xhost +local:root
-docker compose run --rm ros1-client
-```
-#### Inside the container start the script
-Inside the container:
-```bash
-echo "192.168.123.18 ubuntu" | sudo tee -a /etc/hosts
-source /opt/ros/noetic/setup.bash
-python3 /ws/src/realsense_yolo_tracker.py
-```
-
-The script subscribes to `/camera/color/image_raw` and `/camera/aligned_depth_to_color/image_raw`, runs YOLO on the RGB image, and overlays the target offset plus measured depth.
-
-## YOLO Detect and walk
-After you verified that the YOLO tracker script works, try the detect and walk script. This script uses the same camera topics and YOLO model, but also imports the Unitree SDK movement controller.
-
-### Install required dependencies and rebuild
-The docker image needs to include the Unitree SDK2 python library before this script can run. Rebuild the container after changing the dockerfile.
-From this repository root:
+#### Create a docker container for running your ROS Node
+From this repository you can build a docker container with all the required prerequisites to run the client node. 
 ```bash
 docker compose build --no-cache ros1-client
 ```
-
-### Start ROS Master and Camera Node on Robot
-Terminal window 1
-```bash
-ssh <username>@<IP Address of your Unitree Go2 Robot>
-roscore
-```
-
-Terminal window 2
-```bash
-roslaunch realsense2_camera rs_camera.launch \
-enable_infra:=false enable_infra1:=false enable_infra2:=false \
-enable_confidence:=false \
-align_depth:=true \
-depth_width:=640 depth_height:=480 depth_fps:=30 \
-color_width:=640 color_height:=480 color_fps:=30
-```
-
-### Start the ros-client on the laptop
+#### Start the docker contianer
 Give permissions for the container to acesss the xhost sysem and start the container. Make sure the robot has enough free space before starting the movement script.
 ```bash
 xhost +local:root
 docker compose run --rm ros1-client
 ```
 
-#### Inside the container start the script
+#### Initialize the container
 Inside the container:
 ```bash
 echo "192.168.123.18 ubuntu" | sudo tee -a /etc/hosts
 source /opt/ros/noetic/setup.bash
 python3 -c "from unitree_sdk2py.core.channel import ChannelFactoryInitialize; print('unitree ok')"
-python3 /ws/src/detect_and_walk_OO.py
 ```
+#### Test ros connectivity to robot
+```bash
+rostopic list
+rostopic info /camera/color/camera_info
+rostopic echo /camera/color/camera_info
+rostopic hz /camera/color/image_raw
+```
+If topics are empty or no messages received. You may need to restart the realsense node on the robot. 
 
-The script subscribes to `/camera/color/image_raw` and `/camera/aligned_depth_to_color/image_raw`, runs YOLO on the RGB image, and is the starting point for combining target detection with the Unitree movement controller.
+## Functionality Testing
 
-Stop the script with `Ctrl+C`.
+### Motion Controller and Object Tracking
+Before testing the full script we do a quick sanity check of the two key functionalities that we will use in this demo:
+- Object detection using YOLO obect tracking on realsense data
+- Motion control through a servo controller. 
 
-#### Troubleshooting
-1. If no messages arrive within the ROS client container on your laptop. Try restarting the the realsense_camera node on the unitree robot.
+### Test Object tracking
+In the container, start this command. A window will pop up that displays the view from the realsense camera. Verify that object detection is working. 
 
-## Todo
+```python3 /ws/src/realsense_yolo_tracker_OO.py```
+
+CTRL-C to interrupt. 
+
+### Test Motion Controller
+In the container, start the below command. The robot will execute a fixed routine in which it will briefly move forward, turn, move backward and change its pose. Make sure you have at least 2m of free space around the robot. 
+
+```python3 /ws/src/go2_controller.py```
+
+## Detect and Walk Demo
+
+### Description
+This is the main demo. We will detect an object (the code is configured to follow a cup, but you can change it) and follow it. The robot will move towards the object until it is within distance and then stop. 
+
+WARNING: Ensure you do not have the same object in multiple places in the room or the robot may move unpredictabley towards objects that are not part of you intended demo. 
+
+### Start Demo
+Use this coammand to start the demo:
+```python3 /ws/src/detect_and_walk_OO.py```
+
+
+## Other
+Original ```readme.md``` can be found in ```src/archive```.
+
+## Todos
 1. Miscellaneous:
   - Currently ROS messages from Unitree are being sent from host ubuntu instead from a fixed IP. As a result the client needs to be able to resolve the IP address of Ubunut. We fix this by adding ubuntu to the hosts file of the docker container. In the future a permanent fix would be better.  2
   - Make laptop user part of the docker group
   - Edit code in the IDE directly within the docker container. 
+  - Make a backup of the computer on the back of the Unitree 
 3. Improve YOLO Tracking, so that you can filter detections based on
   - ClassID - Already supported
   - Maximum distance - to be implemented
@@ -269,4 +146,3 @@ Stop the script with `Ctrl+C`.
 10. Optimize
   - Resolution of camera image from realsense is relatively small, experiment with different resolutions
   - Time synchronization. Currently we are every 100mseconds detecting a new image target and adjusting the pose via the go2_controller. The detect_and_walk_OO script also has a control loop that sends commands every 100ms to the robot. Those two loops probably interfere and it should be avoided.  
-
