@@ -201,6 +201,72 @@ python3 /ws/src/realsense_yolo_tracker.py
 
 The script subscribes to `/camera/color/image_raw` and `/camera/aligned_depth_to_color/image_raw`, runs YOLO on the RGB image, and overlays the target offset plus measured depth.
 
+## YOLO Detect and walk
+After you verified that the YOLO tracker script works, try the detect and walk script. This script uses the same camera topics and YOLO model, but also imports the Unitree SDK movement controller.
+
+### Install required dependencies and rebuild
+The docker image needs to include the Unitree SDK2 python library before this script can run. Rebuild the container after changing the dockerfile.
+From this repository root:
+```bash
+docker compose build --no-cache ros1-client
+```
+
+### Start ROS Master and Camera Node on Robot
+Terminal window 1
+```bash
+ssh <username>@<IP Address of your Unitree Go2 Robot>
+roscore
+```
+
+Terminal window 2
+```bash
+roslaunch realsense2_camera rs_camera.launch \
+enable_infra:=false enable_infra1:=false enable_infra2:=false \
+enable_confidence:=false \
+align_depth:=true \
+depth_width:=640 depth_height:=480 depth_fps:=30 \
+color_width:=640 color_height:=480 color_fps:=30
+```
+
+### Start the ros-client on the laptop
+Give permissions for the container to acesss the xhost sysem and start the container. Make sure the robot has enough free space before starting the movement script.
+```bash
+xhost +local:root
+docker compose run --rm ros1-client
+```
+
+#### Inside the container start the script
+Inside the container:
+```bash
+echo "192.168.123.18 ubuntu" | sudo tee -a /etc/hosts
+source /opt/ros/noetic/setup.bash
+python3 -c "from unitree_sdk2py.core.channel import ChannelFactoryInitialize; print('unitree ok')"
+python3 /ws/src/detect_and_walk_OO.py
+```
+
+The script subscribes to `/camera/color/image_raw` and `/camera/aligned_depth_to_color/image_raw`, runs YOLO on the RGB image, and is the starting point for combining target detection with the Unitree movement controller.
+
+Stop the script with `Ctrl+C`.
+
+#### Troubleshooting
+1. If no messages arrive within the ROS client container on your laptop. Try restarting the the realsense_camera node on the unitree robot.
+
 ## Todo
-1. Automate application startup further. Avoid having to add ubuntu to /etc/hosts for communication between client and server to work. 
-2. Add movement 
+1. Miscellaneous:
+  - Currently ROS messages from Unitree are being sent from host ubuntu instead from a fixed IP. As a result the client needs to be able to resolve the IP address of Ubunut. We fix this by adding ubuntu to the hosts file of the docker container. In the future a permanent fix would be better.  2
+  - Make laptop user part of the docker group
+  - Edit code directly from within a docker container. 
+3. Improve YOLO Tracking, so that you can filter detections based on
+  - ClassID - Already supported
+  - Maximum distance - to be implemented
+  - Minimum confidence - to be implemented
+4. Implement Safety/Emergency Stop 
+5. Work uncabled. Implement controller on a Jetson Nano that can be mounted on the robot back
+6. Customize the YOLO tracker so it tracks a VIVES or interreg Logo
+7. Improve YOLO tracking so distance estimates are more accurate
+8. Improve the servo controller for robot movement so movement is more smooth. 
+9. Currently the robot moves towards a target. Implement pose based whole body tracking (ie. let the robot adjust its pose while standing) when the target is close. 
+10. Optimize
+  - Resolution of camera image from realsense is relatively small, experiment with different resolutions
+  - Time synchronization. Currently we are every 100mseconds detecting a new image target and adjusting the pose via the go2_controller. The detect_and_walk_OO script also has a control loop that sends commands every 100ms to the robot. Those two loops probably interfere and it should be avoided.  
+
