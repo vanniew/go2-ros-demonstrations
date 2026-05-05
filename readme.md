@@ -72,6 +72,7 @@ docker compose build --no-cache ros1-client
 ```
 #### Start the docker contianer
 Give permissions for the container to acesss the xhost sysem and start the container. Make sure the robot has enough free space before starting the movement script.
+Go to the directory where you have cloned this github repo. 
 ```bash
 xhost +local:root
 docker compose run --rm ros1-client
